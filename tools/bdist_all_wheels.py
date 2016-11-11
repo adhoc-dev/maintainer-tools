@@ -9,16 +9,13 @@ Typical use (pseudo code):
     oca-bdist-all-wheels --dist-dir ~/wheelhouse --branch 8.0
 
 Then you can install an addon with:
-    pip install odoo-addon-<addon-name> --find-links=~/wheelhouse
-
-Or in the (hopefully not too distant) future:
-    pip install odoo-addon-<addon-name> \\
-        --find-links=https://wheelhouse.odoo-community.org/oca-8.0
+    pip install odoo8-addon-<addon-name> --find-links=~/wheelhouse
 
 """
 import argparse
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -34,12 +31,25 @@ SETUP_PY_METAPACKAGE = """
 import setuptools
 
 setuptools.setup(
-   name="odoo-addons-oca-{repo}",
+   name="odoo{series}-addons-oca-{repo}",
    description="Meta package for OCA {repo} Odoo addons",
    version="{branch}.{date}",
    install_requires={install_requires},
 )
 """
+
+
+def branch_to_series(branch):
+    if os.environ.get('SETUPTOOLS_ODOO_LEGACY_MODE'):
+        return ''
+    if branch.startswith('8.0'):
+        return '8'
+    elif branch.startswith('9.0'):
+        return '9'
+    elif branch.startswith('10.0'):
+        return '10'
+    else:
+        raise RuntimeError("Can't determine Odoo series from %s" % branch)
 
 
 def remove_duplicate_oca_meta_packages(wheeldir):
@@ -55,7 +65,7 @@ def remove_duplicate_oca_meta_packages(wheeldir):
     prev_metadata_size = None
 
     for filename in sorted(os.listdir(wheeldir)):
-        if not filename.startswith('odoo_addons_oca_'):
+        if not re.match("^odoo[0-9]*_addons_oca_", filename):
             continue
         full_filename = os.path.join(wheeldir, filename)
         prefix = filename.split('-')[0]
@@ -66,6 +76,22 @@ def remove_duplicate_oca_meta_packages(wheeldir):
             continue
         # print "deleteing", full_filename
         os.remove(full_filename)
+
+
+def make_wheel_if_not_exists(addon_setup_path, dist_dir):
+    tmpdir = tempfile.mkdtemp()
+    try:
+        subprocess.check_call(['python', 'setup.py', 'bdist_wheel',
+                               '--dist-dir', tmpdir],
+                              cwd=addon_setup_path)
+        wheels = [w for w in os.listdir(tmpdir) if w.endswith('.whl')]
+        if len(wheels) != 1:
+            raise RuntimeError("Wheelfile not found for %s" % addon_setup_path)
+        wheel = wheels[0]
+        if not os.path.exists(os.path.join(dist_dir, wheel)):
+            shutil.move(os.path.join(tmpdir, wheel), dist_dir)
+    finally:
+        shutil.rmtree(tmpdir)
 
 
 def main():
@@ -91,7 +117,7 @@ def main():
         except:
             # branch does not exist, move on to next repo
             continue
-        subprocess.check_call(['git', 'clean', '-f', '-d'], cwd=repo)
+        subprocess.check_call(['git', 'clean', '-f', '-d', '-x'], cwd=repo)
         subprocess.check_call(['setuptools-odoo-make-default',
                                '-d', '.'], cwd=repo)
         # git commit and push setup dir
@@ -107,11 +133,11 @@ def main():
         metapackage_reqs = []
         for addon_name in os.listdir(os.path.join(repo, 'setup')):
             addon_setup_path = os.path.join(repo, 'setup', addon_name)
+            if not os.path.isdir(addon_setup_path):
+                continue
             try:
                 # bdist_wheel for each addon
-                subprocess.check_call(['python', 'setup.py', 'bdist_wheel',
-                                       '--dist-dir', dist_dir],
-                                      cwd=addon_setup_path)
+                make_wheel_if_not_exists(addon_setup_path, dist_dir)
                 addon_dir = os.path.join(repo, addon_name)
                 req = setuptools_odoo.make_pkg_requirement(addon_dir)
                 metapackage_reqs.append(req)
@@ -121,6 +147,7 @@ def main():
                 logging.exception("setup.py error in %s", addon_setup_path)
         # make meta package for each repo
         setup_py_metapackage = SETUP_PY_METAPACKAGE.format(
+            series=branch_to_series(args.branch),
             repo=repo,
             date=time.strftime("%Y%m%d"),
             branch=args.branch,

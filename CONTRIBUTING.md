@@ -11,6 +11,53 @@ this project's own needs. Readers used to the Odoo Guidelines can skip to the
 [Differences With Odoo Guidelines](#differences-with-odoo-guidelines)
 section.
 
+##### Table of Contents
+
+  * [OCA Guidelines](#oca-guidelines)
+    * [Modules](#modules)
+      * [Version numbers](#version-numbers)
+      * [Directories](#directories)
+      * [File naming](#file-naming)
+      * [Installation hooks](#installation-hooks)
+    * [XML files](#xml-files)
+      * [Format](#format)
+      * [Records](#records)
+      * [Naming xml_id](#naming-xml_id)
+        * [Security, View and Action](#security-view-and-action)
+        * [Inherited XML](#inherited-xml)
+      * [External dependencies](#external-dependencies)
+        * [`__openerp__.py`](#__openerp__py)
+        * [ImportError](#importerror)
+        * [README](#user-content-readme)
+    * [Python](#python)
+      * [PEP8 options](#pep8-options)
+      * [Imports](#imports)
+      * [Idioms](#idioms)
+      * [Symbols](#symbols)
+        * [Odoo Python Classes](#odoo-python-classes)
+        * [Variable names](#variable-names)
+      * [SQL](#sql)
+        * [No SQL Injection](#no-sql-injection)
+        * [Never commit the transaction](#never-commit-the-transaction)
+      * [Do not bypass the ORM](#do-not-bypass-the-orm)
+      * [Models](#models)
+      * [Fields](#fields)
+    * [Javascript](#javascript)
+    * [CSS](#css)
+    * [Tests](#tests)
+    * [Git](#git)
+      * [Commit message](#commit-message)
+      * [Review](#review)
+        * [Please respect a few basic rules:](#please-respect-a-few-basic-rules)
+        * [There are the following important parts in a review:](#there-are-the-following-important-parts-in-a-review)
+        * [It makes sense to be picky in the following cases:](#it-makes-sense-to-be-picky-in-the-following-cases)
+    * [Github](#github)
+      * [Teams](#teams)
+      * [Repositories](#repositories)
+      * [Issues](#issues)
+    * [Differences With Odoo Guidelines](#differences-with-odoo-guidelines)
+  * [Backporting Odoo Modules](#backporting-odoo-modules)
+
 ## Modules
 
 * Use of the singular form in module name (or use "multi"),
@@ -26,7 +73,7 @@ section.
   I.e., if you want to combine Odoo's `crm` with OCA's `partner_firstname`, the
   name should be `crm_partner_firstname`.
 * Use the [description template](https://github.com/OCA/maintainer-tools/tree/master/template/module) but remove sections with no meaningful content.
-* In the `__openerp__.py`  manifest file:
+* In the `__openerp__.py`/`__manifest__.py`  manifest file:
   * Avoid empty keys
   * Make sure it has the `license` and `images` keys.
   * Make sure the text `,Odoo Community Association (OCA)` is appended
@@ -67,6 +114,8 @@ A module is organized in a few directories:
   `lib/`, ...
 * `views/`: contains the views and templates, and QWeb report print templates
 * `wizards/`: wizard model and views
+* `examples/`: external files
+
 
 ### File naming
 
@@ -74,7 +123,11 @@ For `models`, `views` and `data` declarations, split files by the model
 involved, either created or inherited. These files should be named after the
 model. For example, demo data for res.partner should go in a file named
 `demo/res_partner.xml` and a view for partner should go in a file named
-`views/res_partner.xml`.
+`views/res_partner.xml`. An exception can be made when the model is a 
+model intended to be used only as a one2many model nested on the main 
+model. In this case, you can include the model definition inside it.
+Example `sale.order.line` model can be together with `sale.order` in
+the file `models/sale_order.py`.
 
 For model named `<main_model>` the following files may be created:
 
@@ -84,7 +137,9 @@ For model named `<main_model>` the following files may be created:
 * `templates/<main_model>.xml`
 * `views/<main_model>.xml`
 
-For `controller`, the only file should be named `main.py`.
+For `controller`, if there is only one file it should be named `main.py`.
+If there are several controller classes or functions you can split them into
+several files.
 
 For `static files`, the name pattern is `<module_name>.ext` (i.e.
 `static/js/im_chat.js`, `static/css/im_chat.css`, `static/xml/im_chat.xml`,
@@ -160,6 +215,10 @@ addons/<my_module_name>/
 |       |   `-- <my_module_name>.less
 |       `-- xml/
 |           `-- <my_module_name>.xml
+|-- tests/
+|   |-- __init__.py
+|   |-- <test_file>.py
+|   |-- <test_file>.yml
 |-- views/
 |   |-- <main_model>.xml
 |   `-- <inherited_main_model>_views.xml
@@ -171,6 +230,8 @@ addons/<my_module_name>/
     |-- __init__.py
     |-- <wizard_model>.py
     `-- <wizard_model>.xml
+|-- examples/
+|   |-- my_example.csv
 ```
 
 Filenames should use only `[a-z0-9_]`
@@ -187,7 +248,6 @@ When declaring a record in XML:
 * For field declarations, the `name` attribute is first. Then place the `value`
   either in the `field` tag, either in the `eval` attribute, and finally other
   attributes (widget, options, ...) ordered by importance.
-
 * Try to group the records by model. In case of dependencies between
   action/menu/views, the convention may not be applicable.
 * Use naming convention defined at the next point
@@ -300,6 +360,31 @@ same name.
 </record>
 ```
 
+
+Use of `<... position="replace">` is not recommended because
+could show the error `Element ... cannot be located in parent view`
+from other inherited views with this field.
+
+If you need to use this option, it must have an explicit comment
+explaining why it is absolutely necessary and also use a
+high value in its `priority` (greater than 100 is recommended) to avoid the error.
+
+
+```xml
+<record id="view_id" model="ir.ui.view">
+    <field name="name">view.name</field>
+    <field name="model">object_name</field>
+    <field name="priority">110</field> <!--Priority greater than 100-->
+    <field name="arch" type="xml">
+        <!-- It is necessary because...-->
+        <xpath expr="//field[@name='my_field_1']" position="replace"/>
+    </field>
+</record>
+```
+
+Also, we can hide an element from the view using `invisible="1"`.
+
+
 ### External dependencies
 
 #### `__openerp__.py`
@@ -336,15 +421,20 @@ An entry in `python` needs to be in `PYTHONPATH`, check by running
 `python -c "import external_dependency_python_N"`.
 
 #### ImportError
-In python files where you use `import external_dependency_python_N` you will
+In python files where you use external dependencies you will
 need to add `try-except` with a debug log.
 
 ```python
 try:
-  import external_dependency_python_N
-except ImportError:
-  _logger.debug('Cannot `import external_dependency_python_N`.')
+    import external_dependency_python_N
+    import external_dependency_python_M
+    EXTERNAL_DEPENDENCY_BINARY_N_PATH = tools.find_in_path('external_dependency_binary_N')
+    EXTERNAL_DEPENDENCY_BINARY_M_PATH = tools.find_in_path('external_dependency_binary_M')
+except (ImportError, IOError) as err:
+    _logger.debug(err)
 ```
+This rule doesn't apply to the test files since these files are loaded only when
+running tests and in such a case your module and their external dependencies are installed.
 
 #### README
 If your module uses extra dependencies of python or binaries, please explain
@@ -457,6 +547,8 @@ except ImportError:
 * Use English variable names and write comments in English. Strings which need
   to be displayed in other languages should be translated using the translation
   system
+* Avoid use of ``api.v7`` decorator in new code, unless there is already an API
+  fragmentation in parent methods.
 
 ### Symbols
 
@@ -573,7 +665,7 @@ Unless:
 
  - All `cr.commit()` calls outside of the server framework from now on must have an explicit comment explaining why they are absolutely necessary, why they are indeed correct, and why they do not break the transactions. Otherwise they can and will be removed!
 
- - With new api you can avoid the `cr.commit` using `cr.savepoint` method.
+ - You can avoid the `cr.commit` using `cr.savepoint` method.
 
   ```python
     try:
@@ -586,6 +678,20 @@ Unless:
         # Add here the logic if anything fails. NOTE: Don't need rollback sentence.
         pass
 
+  ```
+
+ - You can isolate a transaction for a valid `cr.commit` using `Environment`:
+
+  ```python
+    with openerp.api.Environment.manage():
+        with openerp.registry(self.env.cr.dbname).cursor() as new_cr:
+            # Create a new environment with new cursor database
+            new_env = api.Environment(new_cr, self.env.uid, self.env.context)
+            # with_env replace original env for this method
+            self.with_env(new_env).write({'name': 'hello'})  # isolated transaction to commit
+            new_env.cr.commit()  # Don't show a invalid-commit in this case
+        # You don't need close your cr because is closed when finish "with"
+    # You don't need clear caches because is cleared when finish "with"
   ```
 
 
@@ -616,20 +722,13 @@ auction_lots_ids = self.search(cr, uid, [
 ])
 ```
 
-### Field
-* `One2Many` and `Many2Many` fields should always have `_ids` as suffix
-  (example: sale_order_line_ids)
-* `Many2One` fields should have `_id` as suffix
-  (example: partner_id, user_id, ...)
-* If the technical name of the field (the variable name) is the same to the
-  string of the label, don't put `string` parameter for new API fields, because
-  it's automatically taken. If your variable name contains "_" in the name,
-  they are converted to spaces when creating the automatic string and each word
-  is capitalized.
-  (example: old api `'name': fields.char('Name', ...)`
-            new api `'name': fields.Char(...)`)
+### Models
+* Model names
+    * Use dot lowercase name for models. Example: `sale.order`
+    * Use name in a singular form. `sale.order` instead of `sale.orders`
 * Method conventions
     * Compute Field: the compute method pattern is `_compute_<field_name>`
+    * Inverse method: the inverse method pattern is `_inverse_<field_name>`
     * Search method: the search method pattern is `_search_<field_name>`
     * Default method: the default method pattern is `_default_<field_name>`
     * Onchange method: the onchange method pattern is `_onchange_<field_name>`
@@ -640,19 +739,10 @@ auction_lots_ids = self.search(cr, uid, [
       `self.ensure_one()` at the beginning of the method.
     * `@api.one` method: For v8 is recommended use `@api.multi` and avoid use
       `@api.one`, for compatibility with v9 where is deprecated `@api.one`.
-
-* Default functions should be declared with a lambda call on self. The reason
-  for this is so a default function can be inherited. Assigning a function
-  pointer directly to the `default` parameter does not allow for inheritance.
-
-  ```python
-  a_field(..., default=lambda self: self._default_get())
-  ```
-
 * In a Model attribute order should be
     1. Private attributes (`_name`, `_description`, `_inherit`, ...)
-    2. Fields declarations
-    3. Default method and `_default_get`
+    2. Default method and `_default_get`
+    3. Fields declarations
     4. Compute and search methods in the same order than field declaration
     5. Constrains methods (`@api.constrains`) and onchange methods
        (`@api.onchange`)
@@ -665,6 +755,10 @@ class Event(models.Model):
     # Private attributes
     _name = 'event.event'
     _description = 'Event'
+
+    # Default methods
+    def _default_name(self):
+            ...
 
     # Fields declaration
     name = fields.Char(string='Name', default=_default_name)
@@ -683,10 +777,6 @@ class Event(models.Model):
         compute='_compute_seats',
     )
     price = fields.Integer(string='Price')
-
-    # Default methods
-    def _default_name(self):
-            ...
 
     # compute and search fields, in the same order that fields declaration
     @api.multi
@@ -718,6 +808,27 @@ class Event(models.Model):
         ...
 ```
 
+
+### Fields
+* `One2Many` and `Many2Many` fields should always have `_ids` as suffix
+  (example: sale_order_line_ids)
+* `Many2One` fields should have `_id` as suffix
+  (example: partner_id, user_id, ...)
+* If the technical name of the field (the variable name) is the same to the
+  string of the label, don't put `string` parameter for new API fields, because
+  it's automatically taken. If your variable name contains "_" in the name,
+  they are converted to spaces when creating the automatic string and each word
+  is capitalized.
+  (example: old api `'name': fields.char('Name', ...)`
+            new api `'name': fields.Char(...)`)
+* Default functions should be declared with a lambda call on self. The reason
+  for this is so a default function can be inherited. Assigning a function
+  pointer directly to the `default` parameter does not allow for inheritance.
+
+  ```python
+  a_field(..., default=lambda self: self._default_get())
+  ```
+
 ## Javascript
 
 * `use strict;` is recommended for all javascript files
@@ -742,7 +853,7 @@ As a general rule, a bug fix should come with a unittest which would fail
 without the fix itself. This is to assure that regression will not happen in
 the future. It also is a good way to show that the fix works in all cases.
 
-New modules or addtions should ideally test all the functions defined. The
+New modules or additions should ideally test all the functions defined. The
 coveralls utility will comment on pull requests indicating if coverage
 increased or decreased. If it has decreased, this is usually a sign that a test
 should be added. The coveralls web interface can also show which lines need
@@ -848,7 +959,7 @@ Further reading:
   * Test: means you tested it functionally speaking
 
 While making the merge, please respect the author using the `--author` option
-when committing. The author is found using the bzr log command. Use the commit
+when committing. The author is found using the git log command. Use the commit
 message provided by the contributor if any.
 
 #### It makes sense to be picky in the following cases:
@@ -882,7 +993,7 @@ Pull requests can be closed if:
 * Project name for localization is "l10n_belgium" for Belgium
 * Project name for connectors is "connector-magento" for Magento connector
 
-### Issue
+### Issues
 
 * Issues are used for blueprints and bugs.
 
@@ -919,7 +1030,8 @@ The differences include:
     * Add section for never commit the transaction
 * [Field](#field)
     * A hint for function defaults
-    * Use default label string if is posible.
+    * Use default label string if is possible
+    * Add the inverse method pattern
 * [Tests Section Added](#tests)
 * [Git](#git)
     * No prefixing of commits

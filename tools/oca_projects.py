@@ -4,7 +4,7 @@ Data about OCA Projects, with a few helper functions.
 
 OCA_PROJECTS: dictionary of OCA Projects mapped to the list of related
 repository names, based on
-https://community.odoo.com/page/website.projects_index
+https://odoo-community.org/page/List
 
 OCA_REPOSITORY_NAMES: list of OCA repository names
 
@@ -25,6 +25,7 @@ OCA_PROJECTS = {
                    'account-invoicing',
                    'account-fiscal-rule',
                    'operating-unit',
+                   'intrastat',
                    ],
     # 'backport': ['OCB',
     #              ],
@@ -39,6 +40,7 @@ OCA_PROJECTS = {
                   ],
     'connector': ['connector',
                   'connector-ecommerce',
+                  'queue',
                   ],
     'connector AccountEdge': ['connector-accountedge'],
     'connector LIMS': ['connector-lims'],
@@ -60,7 +62,9 @@ OCA_PROJECTS = {
                             ],
     'document': ['knowledge'],
     'ecommerce': ['e-commerce'],
+    'edi': ['edi'],
     'financial control': ['margin-analysis'],
+    'Infrastructure': ['infrastructure-dns'],
     'geospatial': ['geospatial'],
     'hr': ['hr-timesheet',
            'hr',
@@ -71,6 +75,7 @@ OCA_PROJECTS = {
     'l10n-argentina': ['l10n-argentina'],
     'l10n-belgium': ['l10n-belgium'],
     'l10n-brazil': ['l10n-brazil'],
+    'l10n-cambodia': ['l10n-cambodia'],
     'l10n-canada': ['l10n-canada'],
     'l10n-china': ['l10n-china'],
     'l10n-colombia': ['l10n-colombia'],
@@ -124,6 +129,7 @@ OCA_PROJECTS = {
                            'project-service',
                            'contract',
                            'program',
+                           'business-requirement',
                            ],
     'social': ['social'],
     'tools': ['reporting-engine',
@@ -132,6 +138,7 @@ OCA_PROJECTS = {
               'server-tools',
               'community-data-files',
               'webhook',
+              'interface-github',
               ],
     'vertical association': ['vertical-association'],
     'vertical hotel': ['vertical-hotel'],
@@ -145,7 +152,10 @@ OCA_PROJECTS = {
     'vertical construction': ['vertical-construction'],
     'vertical travel': ['vertical-travel'],
     'web': ['web'],
-    }
+    'website': ['website',
+                'website-cms',
+                ],
+}
 
 
 def get_repositories():

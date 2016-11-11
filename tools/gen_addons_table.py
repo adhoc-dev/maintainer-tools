@@ -23,6 +23,7 @@ import re
 
 
 MARKERS = r'(\[//\]: # \(addons\))|(\[//\]: # \(end addons\))'
+MANIFESTS = ('__openerp__.py', '__manifest__.py')
 
 
 class UserError(Exception):
@@ -70,6 +71,7 @@ def replace_in_readme(readme_path, header, rows_available, rows_unported):
         ])
     addons.append('\n')
     parts[2:5] = addons
+    parts = [p.encode('utf-8') if isinstance(p, unicode) else p for p in parts]
     readme = ''.join(parts)
     open(readme_path, 'w').write(readme)
 
@@ -93,8 +95,12 @@ def gen_addons_table():
     rows_available = []
     rows_unported = []
     for addon_path, unported in addon_paths:
-        manifest_path = os.path.join(addon_path, '__openerp__.py')
-        if os.path.isfile(manifest_path):
+        for manifest_file in MANIFESTS:
+            manifest_path = os.path.join(addon_path, manifest_file)
+            has_manifest = os.path.isfile(manifest_path)
+            if has_manifest:
+                break
+        if has_manifest:
             manifest = ast.literal_eval(open(manifest_path).read())
             addon_name = os.path.basename(addon_path)
             link = '[%s](%s/)' % (addon_name, addon_path)

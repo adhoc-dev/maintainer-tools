@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# © <YEAR(S)> <AUTHOR(S)>
+# Copyright <YEAR(S)> <AUTHOR(S)>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 
@@ -42,5 +42,18 @@ def uninstall_hook(cr, registry):
 
     :param openerp.modules.registry.RegistryManager registry:
         Database registry, using v7 api.
+    """
+    raise NotImplementedError
+
+
+def post_load():
+    """Loaded before any model or data has been initialized.
+
+    This is ok as the post-load hook is for server-wide
+    (instead of registry-specific) functionalities.
+
+    This is very useful to create monkey patches for odoo.
+
+    Note: You do not have access to database cursor here.
     """
     raise NotImplementedError
