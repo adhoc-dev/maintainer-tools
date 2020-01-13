@@ -31,7 +31,7 @@ setuptools.setup(
         # Consider carefully before changing this.
         'docutils>=0.15.1,<0.15.1.1',
         'ERPpeek',
-        'github3.py>=1',
+        'github3.py==1.0.0a4',
         'inflection',
         'jinja2',
         'PyYAML',

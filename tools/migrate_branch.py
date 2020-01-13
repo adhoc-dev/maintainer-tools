@@ -336,12 +336,13 @@ class BranchMigrator(object):
             print("Source branch non existing. Skipping...")
             return
         try:
-            repo.branch(self.gh_target_branch)
+            target_branch = repo.branch(self.gh_target_branch)
         except NotFoundError:
             pass
         else:
-            print("Branch already exists. Skipping...")
-            return
+            if target_branch:
+                print("Branch already exists. Skipping...")
+                return
         repo.create_ref(
             'refs/heads/%s' % self.gh_target_branch,
             source_branch.commit.sha)
